@@ -114,6 +114,51 @@ body {
   flex-wrap: wrap;
 }
 
+.toolbar-filters {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.toolbar-filters .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.toolbar-filters .toolbar-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-radio,
+.filter-check {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 2px 0;
+}
+
+.filter-radio input[type="radio"],
+.filter-check input[type="checkbox"] {
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 .filter-group {
   display: flex;
   gap: 4px;

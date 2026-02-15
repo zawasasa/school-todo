@@ -21,16 +21,23 @@
 
   <!-- 学年タスクタブ -->
   <div id="tab-tasks" class="tab-content active">
-    <div class="toolbar">
+    <div class="toolbar toolbar-filters">
       <div class="filter-group">
-        <button class="filter-btn" data-filter="all">全て</button>
-        <button class="filter-btn active" data-filter="incomplete">未完了</button>
-        <button class="filter-btn" data-filter="thisWeek">今週締切</button>
-        <button class="filter-btn" data-filter="overdue">期限超過</button>
-        <button class="filter-btn" data-filter="myAssign">自分の担当</button>
+        <div class="filter-row">
+          <label class="filter-radio"><input type="radio" name="task-completion" value="incomplete" checked> 未完了</label>
+          <label class="filter-radio"><input type="radio" name="task-completion" value="completed"> 完了済</label>
+          <label class="filter-radio"><input type="radio" name="task-completion" value="all"> 全て</label>
+        </div>
+        <div class="filter-row">
+          <label class="filter-check"><input type="checkbox" id="filter-overdue"> 期限超過</label>
+          <label class="filter-check"><input type="checkbox" id="filter-thisWeek"> 今週締切</label>
+          <label class="filter-check"><input type="checkbox" id="filter-myAssign"> 自分の担当</label>
+        </div>
       </div>
-      <button class="btn-refresh" id="btn-refresh-tasks" title="更新">↻</button>
-      <button class="btn-add" id="btn-add-task">＋ 追加</button>
+      <div class="toolbar-actions">
+        <button class="btn-refresh" id="btn-refresh-tasks" title="更新">↻</button>
+        <button class="btn-add" id="btn-add-task">＋ 追加</button>
+      </div>
     </div>
 
     <!-- 学年タスク追加フォーム -->

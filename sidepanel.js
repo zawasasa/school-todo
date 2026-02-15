@@ -13,7 +13,7 @@ const state = {
     totalClasses: 2
   },
   tasks: [],
-  taskFilter: 'incomplete',
+  taskFilter: { completion: 'incomplete', overdue: false, thisWeek: false, myAssign: false },
   privateTasks: [],
   privateFilter: 'incomplete',
   privateCategoryFilter: '',
@@ -350,14 +350,25 @@ function getAssignedCount(task) {
 // ========================================
 
 function initTaskTab() {
-  // フィルタボタン
-  document.querySelectorAll('#tab-tasks .filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#tab-tasks .filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.taskFilter = btn.dataset.filter;
+  // 完了状態ラジオボタン
+  document.querySelectorAll('input[name="task-completion"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      state.taskFilter.completion = radio.value;
       renderTasks();
     });
+  });
+  // 条件チェックボックス
+  document.getElementById('filter-overdue').addEventListener('change', (e) => {
+    state.taskFilter.overdue = e.target.checked;
+    renderTasks();
+  });
+  document.getElementById('filter-thisWeek').addEventListener('change', (e) => {
+    state.taskFilter.thisWeek = e.target.checked;
+    renderTasks();
+  });
+  document.getElementById('filter-myAssign').addEventListener('change', (e) => {
+    state.taskFilter.myAssign = e.target.checked;
+    renderTasks();
   });
   // 更新ボタン
   document.getElementById('btn-refresh-tasks').addEventListener('click', () => {
@@ -432,15 +443,23 @@ async function fetchTasks() {
 }
 
 function filterTasks(tasks) {
+  const f = state.taskFilter;
   return tasks.filter(task => {
-    switch (state.taskFilter) {
-      case 'all': return true;
-      case 'incomplete': return !isTaskCompletedForMe(task);
-      case 'thisWeek': return isThisWeek(task.deadline);
-      case 'overdue': return isOverdue(task.deadline);
-      case 'myAssign': return isMyAssignment(task);
-      default: return true;
+    // 1. 完了状態フィルタ（ラジオ）
+    if (f.completion === 'incomplete' && isTaskCompletedForMe(task)) return false;
+    if (f.completion === 'completed' && !isTaskCompletedForMe(task)) return false;
+
+    // 2. 条件フィルタ（チェックボックス、OR結合）
+    const hasCondition = f.overdue || f.thisWeek || f.myAssign;
+    if (hasCondition) {
+      let match = false;
+      if (f.overdue && isOverdue(task.deadline)) match = true;
+      if (f.thisWeek && isThisWeek(task.deadline)) match = true;
+      if (f.myAssign && isMyAssignment(task)) match = true;
+      if (!match) return false;
     }
+
+    return true;
   });
 }
 
