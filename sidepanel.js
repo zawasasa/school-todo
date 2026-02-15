@@ -262,12 +262,24 @@ function formatDeadline(str) {
   return str;
 }
 
+// --- プライベートシートキー ---
+function getPrivateSheetKey() {
+  const myClass = state.settings.myClass;
+  if (myClass !== 'none') return myClass;
+  if (state.settings.isLeader || state.settings.myRoles.includes('leader')) {
+    return 'leader';
+  }
+  return 'tanningai';
+}
+
 // --- 担当判定ユーティリティ ---
 function isMyAssignment(task) {
   const myClass = state.settings.myClass;
   const myRoles = state.settings.myRoles;
-  const assignKey = `assignKumi${myClass}`;
-  if (task[assignKey]) return true;
+  // クラス担任の場合のみクラス担当チェック
+  if (myClass !== 'none') {
+    if (task[`assignKumi${myClass}`]) return true;
+  }
   if (myRoles.includes('leader') && task.assignLeader) return true;
   if (myRoles.includes('tanningai') && task.assignTanningai) return true;
   return false;
@@ -277,8 +289,8 @@ function isTaskCompletedForMe(task) {
   if (!isMyAssignment(task)) return true; // 担当でないならば完了扱い
   const myClass = state.settings.myClass;
   const myRoles = state.settings.myRoles;
-  // 自分のクラスが担当されてて未チェック → 未完了
-  if (task[`assignKumi${myClass}`] && !task[`kumi${myClass}`]) return false;
+  // 自分のクラスが担当されてて未チェック → 未完了（クラスありの場合のみ）
+  if (myClass !== 'none' && task[`assignKumi${myClass}`] && !task[`kumi${myClass}`]) return false;
   // 学年主任が担当されてて未チェック → 未完了
   if (myRoles.includes('leader') && task.assignLeader && !task.leader) return false;
   // 担任外が担当されてて未チェック → 未完了
@@ -490,7 +502,7 @@ function renderTaskCard(task) {
     }
   } else if (myAssigned) {
     const myClass = state.settings.myClass;
-    if (task[`assignKumi${myClass}`]) {
+    if (myClass !== 'none' && task[`assignKumi${myClass}`]) {
       checks += renderCheckItem(`${myClass}組`, `kumi${myClass}`, task[`kumi${myClass}`], task.row);
     }
     // 学年主任ロールを持つ場合
@@ -817,7 +829,7 @@ async function fetchPrivateTasks() {
   const list = document.getElementById('private-task-list');
   list.innerHTML = '<div class="skeleton-loader"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
   try {
-    const data = await apiGet('getPrivateTasks', { myClass: state.settings.myClass });
+    const data = await apiGet('getPrivateTasks', { myClass: getPrivateSheetKey() });
     state.privateTasks = data.tasks || [];
     state.privateCategories = data.categories || [];
     updateCategorySuggestions();
@@ -988,7 +1000,7 @@ async function handlePrivateComplete(cb) {
   cb.disabled = true;
   try {
     const data = await apiPost('completePrivateTask', {
-      myClass: state.settings.myClass,
+      myClass: getPrivateSheetKey(),
       row,
       completed
     });
@@ -1019,7 +1031,7 @@ async function submitPrivateTask() {
   }
 
   const body = {
-    myClass: state.settings.myClass,
+    myClass: getPrivateSheetKey(),
     task: name,
     deadline,
     priority: document.getElementById('new-private-priority').value,
@@ -1056,7 +1068,7 @@ async function submitPrivateTask() {
 
 async function deletePrivateTask(row) {
   try {
-    await apiPost('deletePrivateTask', { myClass: state.settings.myClass, row });
+    await apiPost('deletePrivateTask', { myClass: getPrivateSheetKey(), row });
     showToast('タスクを削除しました', 'success');
     fetchPrivateTasks();
   } catch (e) {
@@ -1208,6 +1220,17 @@ function initSettingsTab() {
   document.getElementById('setting-role-leader').addEventListener('change', (e) => {
     if (e.target.checked) {
       document.getElementById('setting-leader-mode').checked = true;
+    }
+  });
+
+  // クラスなし選択時にロール未選択なら担任外を自動チェック
+  document.getElementById('setting-my-class').addEventListener('change', (e) => {
+    if (e.target.value === 'none') {
+      const leaderCb = document.getElementById('setting-role-leader');
+      const tanningaiCb = document.getElementById('setting-role-tanningai');
+      if (!leaderCb.checked && !tanningaiCb.checked) {
+        tanningaiCb.checked = true;
+      }
     }
   });
 

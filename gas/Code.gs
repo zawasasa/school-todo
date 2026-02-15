@@ -14,14 +14,14 @@ const TASK_COLS = {
   detail: 4,         // D: 詳細
   link: 5,           // E: リンク
   submitTo: 6,       // F: 提出先・保存先
-  gakunen: 7,        // G: 全完了（自動）
-  kumi1: 8,          // H: 1組
-  kumi2: 9,          // I: 2組
-  kumi3: 10,         // J: 3組
-  kumi4: 11,         // K: 4組
-  leader: 12,        // L: 学年主任チェック ★NEW
-  tanningai: 13,     // M: 担任外チェック ★NEW
-  approved: 14,      // N: 学年済
+  approved: 7,       // G: 学年済 ★MOVED from N
+  gakunen: 8,        // H: 全完了（自動）
+  kumi1: 9,          // I: 1組
+  kumi2: 10,         // J: 2組
+  kumi3: 11,         // K: 3組
+  kumi4: 12,         // L: 4組
+  leader: 13,        // M: 学年主任
+  tanningai: 14,     // N: 担任外
   assignKumi1: 15,   // O: 担当1組
   assignKumi2: 16,   // P: 担当2組
   assignKumi3: 17,   // Q: 担当3組
@@ -137,10 +137,16 @@ function getTaskSheet() {
 }
 
 function getPrivateSheet(myClass) {
-  if (!myClass || !['1', '2', '3', '4'].includes(String(myClass))) {
-    throw new Error('不正なクラス番号: ' + myClass);
+  let sheetName;
+  if (['1', '2', '3', '4'].includes(String(myClass))) {
+    sheetName = myClass + '組';
+  } else if (myClass === 'leader') {
+    sheetName = '学年主任';
+  } else if (myClass === 'tanningai') {
+    sheetName = '担任外';
+  } else {
+    throw new Error('不正なクラス識別子: ' + myClass);
   }
-  const sheetName = myClass + '組';
   const ss = getSpreadsheet();
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) throw new Error('シート「' + sheetName + '」が見つかりません');
@@ -675,6 +681,7 @@ function onOpen() {
     .addSeparator()
     .addItem('🔧 G列マイグレーション（初回のみ）', 'migrateGakunenColumn')
     .addItem('🔧 主任・担任外チェック列追加', 'migrateAddCheckColumns')
+    .addItem('🔧 学年済列をG列に移動 + 主任/担任外シート作成', 'migrateReorderApproved')
     .addToUi();
 }
 
@@ -730,7 +737,7 @@ function menuRenumber() {
   if (sheetName === TASK_SHEET_NAME) {
     taskCol = TASK_COLS.task;
     numCol = TASK_COLS.number;
-  } else if (['1組', '2組', '3組', '4組'].includes(sheetName)) {
+  } else if (['1組', '2組', '3組', '4組', '学年主任', '担任外'].includes(sheetName)) {
     taskCol = PRIVATE_COLS.task;
     numCol = PRIVATE_COLS.number;
   } else {
@@ -1029,9 +1036,10 @@ function setupSpreadsheet() {
   // ヘッダー行を設定（既存データがある場合はL列以降のみ追加）
   const taskHeaders = [
     '#', '締め切り日', 'やること', '詳細', 'リンク', '提出先・保存先',
-    '全完了（自動）', '1組', '2組', '3組', '4組',
+    '学年済', '全完了（自動）',
+    '1組', '2組', '3組', '4組',
     '学年主任', '担任外',
-    '学年済', '担当1組', '担当2組', '担当3組', '担当4組', '担当学年主任', '担当担任外'
+    '担当1組', '担当2組', '担当3組', '担当4組', '担当学年主任', '担当担任外'
   ];
 
   // 既存のヘッダーを確認
@@ -1039,18 +1047,18 @@ function setupSpreadsheet() {
   const hasExistingData = existingHeaders[0] !== '' && existingHeaders[0] !== undefined;
 
   if (hasExistingData) {
-    // 既存シート: L〜T列のヘッダーを追加/更新
-    const newHeaders = taskHeaders.slice(11); // L列以降
+    // 既存シート: G〜T列のヘッダーを追加/更新
+    const newHeaders = taskHeaders.slice(6); // G列以降
     for (let i = 0; i < newHeaders.length; i++) {
-      taskSheet.getRange(1, 12 + i).setValue(newHeaders[i]);
+      taskSheet.getRange(1, 7 + i).setValue(newHeaders[i]);
     }
-    Logger.log('学年タスクシート: L〜T列のヘッダーを追加しました');
+    Logger.log('学年タスクシート: G〜T列のヘッダーを更新しました');
 
-    // 既存データ行にチェックボックスを設定（L〜R列）
+    // 既存データ行にチェックボックスを設定（G〜T列）
     const lastRow = taskSheet.getLastRow();
     if (lastRow >= 2) {
       const checkRule = SpreadsheetApp.newDataValidation().requireCheckbox().build();
-      for (let col = 12; col <= 20; col++) {
+      for (let col = 7; col <= 20; col++) {
         const range = taskSheet.getRange(2, col, lastRow - 1, 1);
         range.setDataValidation(checkRule);
         // 空セルをfalseで初期化
@@ -1082,7 +1090,7 @@ function setupSpreadsheet() {
     'メモ', 'リンク', '繰り返し', '繰り返し基準日', '完了', '完了日'
   ];
 
-  const classNames = ['1組', '2組', '3組', '4組'];
+  const classNames = ['1組', '2組', '3組', '4組', '学年主任', '担任外'];
   for (const className of classNames) {
     let sheet = ss.getSheetByName(className);
     if (!sheet) {
@@ -1119,5 +1127,106 @@ function setupSpreadsheet() {
   Logger.log('===== セットアップ完了 =====');
   Logger.log('スプレッドシートID: ' + ssId);
   Logger.log('学年タスクシート: ' + TASK_SHEET_NAME);
-  Logger.log('プライベートシート: 1組, 2組, 3組, 4組');
+  Logger.log('プライベートシート: 1組, 2組, 3組, 4組, 学年主任, 担任外');
+}
+
+// ========================================
+// 学年済列移動 + 学年主任/担任外シート作成マイグレーション
+// スプレッドシートメニューから1回だけ実行してください
+// ========================================
+
+function migrateReorderApproved() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.alert(
+    'マイグレーション確認',
+    '以下の変更を実行します:\n' +
+    '1. N列（学年済）をG列に移動\n' +
+    '2. 「学年主任」「担任外」プライベートシートを作成\n\n' +
+    '※ 既にG列が「学年済」の場合は移動をスキップします。\n実行しますか？',
+    ui.ButtonSet.YES_NO
+  );
+  if (response !== ui.Button.YES) return;
+
+  const ss = getSpreadsheet();
+  const sheet = getTaskSheet();
+  const lastRow = sheet.getLastRow();
+  const maxRows = Math.max(lastRow, 1);
+
+  // --- 1. N列（学年済）をG列に移動 ---
+  const currentG = sheet.getRange(1, 7).getValue();
+  let columnMoved = false;
+
+  if (String(currentG) !== '学年済') {
+    // 現在の14列目（学年済）をG列（7列目）の前に移動
+    // moveColumns(range, destinationIndex): destinationIndexはinsert前の列番号
+    sheet.moveColumns(sheet.getRange(1, 14, maxRows, 1), 7);
+    columnMoved = true;
+    Logger.log('N列（学年済）をG列に移動しました');
+
+    // チェックボックス再適用（G〜T列）
+    if (lastRow >= 2) {
+      const checkRule = SpreadsheetApp.newDataValidation().requireCheckbox().build();
+      for (let col = 7; col <= 14; col++) {
+        sheet.getRange(2, col, lastRow - 1, 1).setDataValidation(checkRule);
+      }
+      // 担当列（O〜T: 15〜20）もチェックボックス再適用
+      for (let col = 15; col <= 20; col++) {
+        sheet.getRange(2, col, lastRow - 1, 1).setDataValidation(checkRule);
+      }
+    }
+  } else {
+    Logger.log('G列は既に「学年済」です。列移動をスキップしました');
+  }
+
+  // --- 2. 学年主任・担任外プライベートシート作成 ---
+  const privateHeaders = [
+    '#', 'やること', '締め切り日', '優先度', 'カテゴリ',
+    'メモ', 'リンク', '繰り返し', '繰り返し基準日', '完了', '完了日'
+  ];
+
+  const newSheetNames = ['学年主任', '担任外'];
+  const createdSheets = [];
+
+  for (const sheetName of newSheetNames) {
+    let privateSheet = ss.getSheetByName(sheetName);
+    if (!privateSheet) {
+      privateSheet = ss.insertSheet(sheetName);
+      privateSheet.getRange(1, 1, 1, privateHeaders.length).setValues([privateHeaders]);
+      const headerRange = privateSheet.getRange(1, 1, 1, privateHeaders.length);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#E8E0F5');
+      privateSheet.setFrozenRows(1);
+      privateSheet.setColumnWidth(1, 40);
+      privateSheet.setColumnWidth(2, 200);
+      privateSheet.setColumnWidth(3, 100);
+      privateSheet.setColumnWidth(4, 60);
+      privateSheet.setColumnWidth(5, 100);
+      privateSheet.setColumnWidth(6, 200);
+      privateSheet.setColumnWidth(7, 200);
+      privateSheet.setColumnWidth(8, 80);
+      privateSheet.setColumnWidth(9, 100);
+      privateSheet.setColumnWidth(10, 50);
+      privateSheet.setColumnWidth(11, 100);
+      createdSheets.push(sheetName);
+      Logger.log('「' + sheetName + '」シートを作成しました');
+    } else {
+      Logger.log('「' + sheetName + '」シートは既に存在します。スキップしました');
+    }
+  }
+
+  // --- 結果表示 ---
+  let msg = '';
+  if (columnMoved) {
+    msg += '✅ N列（学年済）をG列に移動しました\n';
+    msg += '   G:学年済  H:全完了(自動)  I:1組  J:2組  K:3組  L:4組  M:学年主任  N:担任外\n\n';
+  } else {
+    msg += 'ℹ️ 列移動: 既にG列が「学年済」のためスキップ\n\n';
+  }
+  if (createdSheets.length > 0) {
+    msg += '✅ プライベートシート作成: ' + createdSheets.join(', ') + '\n';
+  } else {
+    msg += 'ℹ️ プライベートシート: 既に存在するためスキップ\n';
+  }
+
+  ui.alert('マイグレーション完了', msg, ui.ButtonSet.OK);
 }
