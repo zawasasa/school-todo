@@ -92,6 +92,22 @@ function applySettings() {
   }
   // 表示クラス数に応じて3組・4組の表示切り替え
   updateClassVisibility();
+  // ロールステータス更新
+  updateRoleStatus();
+}
+
+function updateRoleStatus() {
+  const el = document.getElementById('role-status');
+  if (!el) return;
+  const myClass = state.settings.myClass;
+  const roles = state.settings.myRoles || [];
+  const parts = [];
+  if (myClass !== 'none') {
+    parts.push(myClass + '組担任');
+  }
+  if (roles.includes('leader')) parts.push('学年主任');
+  if (roles.includes('tanningai')) parts.push('担任外');
+  el.textContent = parts.length > 0 ? parts.join('・') : '未設定';
 }
 
 function updateClassVisibility() {

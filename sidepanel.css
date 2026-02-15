@@ -88,6 +88,19 @@ body {
 }
 
 /* ========================================
+   ロールステータス
+   ======================================== */
+
+.role-status {
+  padding: 4px 12px;
+  background: var(--accent);
+  font-size: 11px;
+  color: var(--primary-dark);
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ========================================
    ツールバー
    ======================================== */
 
