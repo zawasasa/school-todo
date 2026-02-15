@@ -15,7 +15,7 @@ const state = {
   tasks: [],
   taskFilter: { completion: 'incomplete', overdue: false, thisWeek: false, myAssign: false },
   privateTasks: [],
-  privateFilter: 'incomplete',
+  privateFilter: { completion: 'incomplete', overdue: false, thisWeek: false },
   privateCategoryFilter: '',
   privateCategories: [],
   activeTab: 'tasks',
@@ -778,14 +778,21 @@ async function submitNewTask() {
 // ========================================
 
 function initPrivateTab() {
-  // フィルタ
-  document.querySelectorAll('#tab-private .filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#tab-private .filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.privateFilter = btn.dataset.privateFilter;
+  // 完了状態ラジオボタン
+  document.querySelectorAll('input[name="private-completion"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      state.privateFilter.completion = radio.value;
       renderPrivateTasks();
     });
+  });
+  // 条件チェックボックス
+  document.getElementById('private-filter-overdue').addEventListener('change', (e) => {
+    state.privateFilter.overdue = e.target.checked;
+    renderPrivateTasks();
+  });
+  document.getElementById('private-filter-thisWeek').addEventListener('change', (e) => {
+    state.privateFilter.thisWeek = e.target.checked;
+    renderPrivateTasks();
   });
 
   // カテゴリフィルタ
@@ -891,19 +898,18 @@ function updateCategoryFilter() {
 }
 
 function filterPrivateTasks(tasks) {
+  const f = state.privateFilter;
   return tasks.filter(task => {
-    // フィルタ
-    switch (state.privateFilter) {
-      case 'all': break;
-      case 'incomplete':
-        if (task.completed) return false;
-        break;
-      case 'thisWeek':
-        if (!isThisWeek(task.deadline)) return false;
-        break;
-      case 'overdue':
-        if (!isOverdue(task.deadline)) return false;
-        break;
+    // 完了状態フィルタ
+    if (f.completion === 'incomplete' && task.completed) return false;
+    if (f.completion === 'completed' && !task.completed) return false;
+    // 条件チェックボックス（OR結合）
+    const hasCondition = f.overdue || f.thisWeek;
+    if (hasCondition) {
+      let match = false;
+      if (f.overdue && isOverdue(task.deadline)) match = true;
+      if (f.thisWeek && isThisWeek(task.deadline)) match = true;
+      if (!match) return false;
     }
     // カテゴリフィルタ
     if (state.privateCategoryFilter && task.category !== state.privateCategoryFilter) return false;

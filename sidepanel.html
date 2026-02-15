@@ -97,18 +97,25 @@
 
   <!-- マイタスク（プライベートタスク）タブ -->
   <div id="tab-private" class="tab-content">
-    <div class="toolbar">
+    <div class="toolbar toolbar-filters">
       <div class="filter-group">
-        <button class="filter-btn" data-private-filter="all">全て</button>
-        <button class="filter-btn active" data-private-filter="incomplete">未完了</button>
-        <button class="filter-btn" data-private-filter="thisWeek">今週締切</button>
-        <button class="filter-btn" data-private-filter="overdue">期限超過</button>
+        <div class="filter-row">
+          <label class="filter-radio"><input type="radio" name="private-completion" value="incomplete" checked> 未完了</label>
+          <label class="filter-radio"><input type="radio" name="private-completion" value="completed"> 完了済</label>
+          <label class="filter-radio"><input type="radio" name="private-completion" value="all"> 全て</label>
+        </div>
+        <div class="filter-row">
+          <label class="filter-check"><input type="checkbox" id="private-filter-overdue"> 期限超過</label>
+          <label class="filter-check"><input type="checkbox" id="private-filter-thisWeek"> 今週締切</label>
+          <select id="category-filter" class="category-select">
+            <option value="">カテゴリ</option>
+          </select>
+        </div>
       </div>
-      <select id="category-filter" class="category-select">
-        <option value="">カテゴリ</option>
-      </select>
-      <button class="btn-refresh" id="btn-refresh-private" title="更新">↻</button>
-      <button class="btn-add" id="btn-add-private">＋ 追加</button>
+      <div class="toolbar-actions">
+        <button class="btn-refresh" id="btn-refresh-private" title="更新">↻</button>
+        <button class="btn-add" id="btn-add-private">＋ 追加</button>
+      </div>
     </div>
 
     <!-- プライベートタスク追加/編集フォーム -->
