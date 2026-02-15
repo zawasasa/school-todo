@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ささっと学年TODOアプリ</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <!-- タブバー -->
+  <div class="tab-bar">
+    <button class="tab active" data-tab="tasks">📋 学年タスク</button>
+    <button class="tab" data-tab="private">🔒 マイタスク</button>
+    <button class="tab tab-overview hidden" data-tab="overview">👀 学年俯瞰</button>
+    <button class="tab" data-tab="settings">⚙️ 設定</button>
+    <div class="tab-indicator"></div>
+  </div>
+
+  <!-- 学年タスクタブ -->
+  <div id="tab-tasks" class="tab-content active">
+    <div class="toolbar">
+      <div class="filter-group">
+        <button class="filter-btn" data-filter="all">全て</button>
+        <button class="filter-btn active" data-filter="incomplete">未完了</button>
+        <button class="filter-btn" data-filter="thisWeek">今週締切</button>
+        <button class="filter-btn" data-filter="overdue">期限超過</button>
+        <button class="filter-btn" data-filter="myAssign">自分の担当</button>
+      </div>
+      <button class="btn-refresh" id="btn-refresh-tasks" title="更新">↻</button>
+      <button class="btn-add" id="btn-add-task">＋ 追加</button>
+    </div>
+
+    <!-- 学年タスク追加フォーム -->
+    <div id="task-add-form" class="add-form hidden">
+      <h3>学年タスク追加</h3>
+      <div class="form-group">
+        <label>やること <span class="required">*</span></label>
+        <input type="text" id="new-task-name" placeholder="タスク名を入力">
+      </div>
+      <div class="form-group">
+        <label>締め切り日</label>
+        <input type="date" id="new-task-deadline">
+      </div>
+      <div class="form-group">
+        <label>詳細</label>
+        <textarea id="new-task-detail" placeholder="補足情報"></textarea>
+      </div>
+      <div class="form-group">
+        <label>リンク</label>
+        <input type="url" id="new-task-link" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>提出先・保存先</label>
+        <input type="text" id="new-task-submit" placeholder="提出先や保存場所">
+      </div>
+      <div class="form-group">
+        <label>担当クラス <span class="required">*</span></label>
+        <div class="assign-presets">
+          <button type="button" class="preset-btn" data-preset="all">全員</button>
+          <button type="button" class="preset-btn" data-preset="classes">クラスのみ</button>
+          <button type="button" class="preset-btn" data-preset="clear">クリア</button>
+        </div>
+        <div class="assign-checkboxes" id="new-task-assigns">
+          <label><input type="checkbox" data-assign="assignKumi1"> 1組</label>
+          <label><input type="checkbox" data-assign="assignKumi2"> 2組</label>
+          <label class="assign-kumi3"><input type="checkbox" data-assign="assignKumi3"> 3組</label>
+          <label class="assign-kumi4"><input type="checkbox" data-assign="assignKumi4"> 4組</label>
+          <label><input type="checkbox" data-assign="assignLeader"> 学年主任</label>
+          <label><input type="checkbox" data-assign="assignTanningai"> 担任外</label>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btn-submit-task">追加</button>
+        <button class="btn btn-cancel" id="btn-cancel-task">キャンセル</button>
+      </div>
+    </div>
+
+    <!-- 学年タスク一覧 -->
+    <div id="task-list" class="task-list">
+      <div class="skeleton-loader">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- マイタスク（プライベートタスク）タブ -->
+  <div id="tab-private" class="tab-content">
+    <div class="toolbar">
+      <div class="filter-group">
+        <button class="filter-btn" data-private-filter="all">全て</button>
+        <button class="filter-btn active" data-private-filter="incomplete">未完了</button>
+        <button class="filter-btn" data-private-filter="thisWeek">今週締切</button>
+        <button class="filter-btn" data-private-filter="overdue">期限超過</button>
+      </div>
+      <select id="category-filter" class="category-select">
+        <option value="">カテゴリ</option>
+      </select>
+      <button class="btn-refresh" id="btn-refresh-private" title="更新">↻</button>
+      <button class="btn-add" id="btn-add-private">＋ 追加</button>
+    </div>
+
+    <!-- プライベートタスク追加/編集フォーム -->
+    <div id="private-add-form" class="add-form hidden">
+      <h3 id="private-form-title">プライベートタスク追加</h3>
+      <input type="hidden" id="private-edit-row">
+      <div class="form-group">
+        <label>やること <span class="required">*</span></label>
+        <input type="text" id="new-private-name" placeholder="タスク名を入力">
+      </div>
+      <div class="form-group">
+        <label>締め切り日</label>
+        <input type="date" id="new-private-deadline">
+      </div>
+      <div class="form-group">
+        <label>優先度</label>
+        <select id="new-private-priority">
+          <option value="中" selected>中</option>
+          <option value="高">高</option>
+          <option value="低">低</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <input type="text" id="new-private-category" list="category-suggestions" placeholder="例: 授業準備">
+        <datalist id="category-suggestions"></datalist>
+      </div>
+      <div class="form-group">
+        <label>メモ</label>
+        <textarea id="new-private-memo" placeholder="詳細メモ"></textarea>
+      </div>
+      <div class="form-group">
+        <label>リンク</label>
+        <input type="url" id="new-private-link" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>繰り返し</label>
+        <select id="new-private-repeat">
+          <option value="none" selected>なし</option>
+          <option value="daily">毎日</option>
+          <option value="weekly">毎週</option>
+          <option value="monthly">毎月</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btn-submit-private">追加</button>
+        <button class="btn btn-cancel" id="btn-cancel-private">キャンセル</button>
+      </div>
+    </div>
+
+    <!-- プライベートタスク一覧 -->
+    <div id="private-task-list" class="task-list">
+      <div class="skeleton-loader">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 学年俯瞰タブ（学年主任専用） -->
+  <div id="tab-overview" class="tab-content">
+    <div class="toolbar">
+      <h3>学年タスク俯瞰</h3>
+    </div>
+    <div id="overview-list" class="overview-list">
+      <div class="skeleton-loader">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 設定タブ -->
+  <div id="tab-settings" class="tab-content">
+    <div class="settings-form">
+      <h3>設定</h3>
+      <div class="form-group">
+        <label>GAS Web App URL <span class="required">*</span></label>
+        <input type="url" id="setting-gas-url" placeholder="https://script.google.com/macros/s/...">
+      </div>
+      <div class="form-group">
+        <label>スプレッドシートID <span class="required">*</span></label>
+        <input type="text" id="setting-spreadsheet-id" placeholder="スプレッドシートのID">
+      </div>
+      <div class="form-group">
+        <label>自分のクラス <span class="required">*</span></label>
+        <select id="setting-my-class">
+          <option value="1">1組</option>
+          <option value="2">2組</option>
+          <option value="3">3組</option>
+          <option value="4">4組</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>自分の役職</label>
+        <div class="role-checkboxes">
+          <label><input type="checkbox" id="setting-role-leader" value="leader"> 学年主任</label>
+          <label><input type="checkbox" id="setting-role-tanningai" value="tanningai"> 担任外</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>学年主任モード</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="setting-leader-mode">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label>表示クラス数 <span class="required">*</span></label>
+        <select id="setting-total-classes">
+          <option value="2">2クラス</option>
+          <option value="3">3クラス</option>
+          <option value="4">4クラス</option>
+        </select>
+      </div>
+      <div class="settings-actions">
+        <button class="btn btn-primary" id="btn-save-settings">保存</button>
+        <button class="btn btn-secondary" id="btn-test-connection">接続テスト</button>
+        <button class="btn btn-secondary" id="btn-open-spreadsheet">スプレッドシートを開く</button>
+      </div>
+      <div id="settings-message" class="settings-message hidden"></div>
+    </div>
+  </div>
+
+  <!-- トースト通知 -->
+  <div id="toast-container" class="toast-container"></div>
+</body>
+<script src="sidepanel.js"></script>
+</html>

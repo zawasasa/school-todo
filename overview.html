@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学年俯瞰 - ささっと学年TODOアプリ</title>
+  <style>
+    :root {
+      --primary: #9B8EC4;
+      --primary-light: #C4B8E0;
+      --primary-dark: #7B6FA0;
+      --primary-bg: #F3F0FA;
+      --accent: #E8E0F5;
+      --success: #7BC67E;
+      --danger: #E07070;
+      --warning: #F0C75E;
+      --text: #333;
+      --text-light: #888;
+      --card-bg: #fff;
+      --border: #E8E0F5;
+      --shadow: rgba(155, 142, 196, 0.12);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+      background: rgba(0, 0, 0, 0.45);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 24px;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+      width: 100%;
+      max-width: 1100px;
+      max-height: calc(100vh - 80px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalIn 0.3s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--primary-bg);
+      gap: 12px;
+    }
+
+    .modal-header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .modal-header .subtitle {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+
+    .btn-close {
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .btn-close:hover {
+      background: var(--primary-light);
+    }
+
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 24px;
+    }
+
+    /* ローディング */
+    .loading-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-light);
+    }
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--accent);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-light);
+      font-size: 14px;
+    }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+    .error-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--danger);
+      font-size: 14px;
+    }
+
+    /* カード */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 4px 16px var(--shadow);
+    }
+    .card.approved {
+      opacity: 0.5;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .task-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .deadline {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .deadline.normal { background: var(--accent); color: var(--primary-dark); }
+    .deadline.overdue { background: #FFEBEE; color: var(--danger); }
+    .deadline.this-week { background: #FFF8E1; color: #E6A700; }
+
+    .approved-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--success);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* 進捗バー */
+    .progress-wrap { margin: 8px 0; }
+    .progress-bar {
+      height: 8px;
+      background: var(--accent);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--primary);
+      transition: width 0.4s ease;
+    }
+    .progress-fill.complete { background: var(--success); }
+    .progress-text {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 3px;
+      text-align: right;
+    }
+
+    /* マトリクス */
+    .matrix {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .matrix-cell {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--primary-bg);
+      min-width: 80px;
+    }
+    .matrix-cell.not-assigned {
+      background: #F5F5F5;
+      color: #CCC;
+    }
+    .matrix-cell.checked {
+      background: rgba(123, 198, 126, 0.15);
+    }
+    .matrix-label { font-weight: 600; }
+    .matrix-status { font-size: 16px; }
+
+    /* 決済ボタン */
+    .btn-approve {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-approve.enabled {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-approve.enabled:hover { background: var(--primary-dark); }
+    .btn-approve.disabled {
+      background: #E8E8E8;
+      color: #AAA;
+      cursor: not-allowed;
+    }
+    .btn-approve.approved-btn {
+      background: var(--success);
+      color: #fff;
+    }
+    .btn-approve.approved-btn:hover { background: #5eb362; }
+
+    /* 確認ダイアログ */
+    .confirm-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .confirm-dialog {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 340px;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .confirm-dialog h4 { font-size: 15px; margin-bottom: 8px; }
+    .confirm-dialog p { font-size: 13px; color: var(--text-light); margin-bottom: 16px; }
+    .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .confirm-actions button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-cancel { background: #E8E8E8; color: var(--text); }
+    .btn-ok { background: var(--primary); color: #fff; }
+
+    /* ビュー切替タブ */
+    .view-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--accent);
+      border-radius: 8px;
+      padding: 3px;
+    }
+    .view-tab {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-light);
+      transition: all 0.2s;
+    }
+    .view-tab.active {
+      background: #fff;
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .view-tab:hover:not(.active) {
+      color: var(--text);
+    }
+
+    /* テーブルビュー */
+    .overview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .overview-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .overview-table th {
+      background: var(--primary-bg);
+      padding: 10px 8px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text);
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    .overview-table th.th-task {
+      text-align: left;
+      min-width: 160px;
+    }
+    .overview-table th.th-deadline {
+      min-width: 70px;
+    }
+    .overview-table th.th-check {
+      min-width: 44px;
+    }
+    .overview-table th.th-progress {
+      min-width: 80px;
+    }
+    .overview-table th.th-action {
+      min-width: 60px;
+    }
+    .overview-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #F0EDF5;
+      vertical-align: middle;
+    }
+    .overview-table tbody tr:hover {
+      background: #FAFAFE;
+    }
+    .overview-table tbody tr.approved-row {
+      opacity: 0.45;
+    }
+
+    .task-name-cell {
+      font-weight: 600;
+      color: var(--text);
+      text-align: left;
+    }
+    .deadline-cell {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .deadline-cell.overdue { color: var(--danger); }
+    .deadline-cell.this-week { color: #E6A700; }
+
+    .check-cell {
+      text-align: center;
+      font-size: 15px;
+    }
+    .check-cell.done { color: var(--success); }
+    .check-cell.pending { color: var(--text-light); }
+    .check-cell.na { color: #DDD; font-size: 12px; }
+
+    .progress-cell {
+      text-align: center;
+    }
+    .progress-mini {
+      width: 100%;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 3px;
+    }
+    .progress-mini-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--primary);
+      transition: width 0.4s ease;
+    }
+    .progress-mini-fill.complete { background: var(--success); }
+    .progress-mini-text {
+      font-size: 11px;
+      color: var(--text-light);
+    }
+
+    .btn-approve-mini {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-approve-mini.enabled {
+      background: var(--primary);
+      color: #fff;
+    }
+    .btn-approve-mini.enabled:hover { background: var(--primary-dark); }
+    .btn-approve-mini.disabled {
+      background: #F0F0F0;
+      color: #CCC;
+      cursor: not-allowed;
+    }
+    .btn-approve-mini.approved-btn {
+      background: var(--success);
+      color: #fff;
+    }
+    .btn-approve-mini.approved-btn:hover { background: #5eb362; }
+
+    /* トースト */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+    }
+    .toast {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      animation: toastIn 0.3s ease;
+    }
+    .toast.success { background: #E8F5E9; color: #2E7D32; }
+    .toast.error { background: #FFEBEE; color: #C62828; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h1>👀 学年タスク俯瞰</h1>
+        <div class="subtitle">全クラスの進捗を一覧で確認・決済</div>
+      </div>
+      <div class="view-tabs">
+        <button class="view-tab active" data-view="table">テーブル</button>
+        <button class="view-tab" data-view="card">カード</button>
+      </div>
+      <button class="btn-close" id="btn-close" title="閉じる">✕</button>
+    </div>
+    <div class="modal-body" id="overview-body">
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <div>読み込み中...</div>
+      </div>
+    </div>
+  </div>
+  <div id="toast-container" class="toast-container"></div>
+  <script src="overview.js"></script>
+</body>
+</html>
