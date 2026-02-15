@@ -2,6 +2,14 @@
    ささっと学年TODOアプリ - メインロジック
    ======================================== */
 
+// --- テーマ定義 ---
+const THEMES = {
+  purple: { name: 'パープル', vars: { '--primary': '#9B8EC4', '--primary-light': '#C4B8E0', '--primary-dark': '#7B6FA0', '--primary-bg': '#F3F0FA', '--accent': '#E8E0F5', '--border': '#E0DCF0', '--shadow': 'rgba(155,142,196,0.12)' }},
+  blue:   { name: 'ブルー',   vars: { '--primary': '#6B9EC4', '--primary-light': '#A3C4E0', '--primary-dark': '#4A7A9F', '--primary-bg': '#EFF5FA', '--accent': '#DDE9F5', '--border': '#D0DCE8', '--shadow': 'rgba(107,158,196,0.12)' }},
+  green:  { name: 'グリーン', vars: { '--primary': '#7BB88C', '--primary-light': '#A8D4B4', '--primary-dark': '#5A9468', '--primary-bg': '#EFF7F1', '--accent': '#DFF0E4', '--border': '#CCE4D2', '--shadow': 'rgba(123,184,140,0.12)' }},
+  pink:   { name: 'ピンク',   vars: { '--primary': '#C48EA0', '--primary-light': '#E0B8C8', '--primary-dark': '#A06F80', '--primary-bg': '#FAF0F4', '--accent': '#F5E0EA', '--border': '#F0D0DC', '--shadow': 'rgba(196,142,160,0.12)' }}
+};
+
 // --- 状態管理 ---
 const state = {
   settings: {
@@ -10,7 +18,9 @@ const state = {
     myClass: '1',
     myRoles: [],
     isLeader: false,
-    totalClasses: 2
+    totalClasses: 2,
+    fontSize: 100,
+    theme: 'purple'
   },
   tasks: [],
   taskFilter: { completion: 'incomplete', overdue: false, thisWeek: false, myAssign: false },
@@ -33,6 +43,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   initTaskTab();
   initPrivateTab();
   initSettingsTab();
+
+  // 学年俯瞰ボタンバー
+  document.getElementById('btn-open-overview').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('overview.html') });
+  });
   if (!state.settings.gasUrl) {
     switchTab('settings');
     showSettingsMessage('GAS Web App URLを設定してください。', 'error');
@@ -83,17 +98,23 @@ function applySettings() {
     state.settings.myRoles[idx] = 'tanningai';
     saveSettings();
   }
-  // 学年主任モード→俯瞰タブ表示
-  const overviewTab = document.querySelector('.tab-overview');
-  if (state.settings.isLeader) {
-    overviewTab.classList.remove('hidden');
-  } else {
-    overviewTab.classList.add('hidden');
-  }
   // 表示クラス数に応じて3組・4組の表示切り替え
   updateClassVisibility();
   // ロールステータス更新
   updateRoleStatus();
+  // テーマ適用
+  applyTheme(state.settings.theme || 'purple');
+  // 文字サイズ適用
+  document.body.style.zoom = (state.settings.fontSize || 100) / 100;
+}
+
+function applyTheme(themeName) {
+  const theme = THEMES[themeName];
+  if (!theme) return;
+  const root = document.documentElement;
+  Object.entries(theme.vars).forEach(([prop, value]) => {
+    root.style.setProperty(prop, value);
+  });
 }
 
 function updateRoleStatus() {
@@ -128,12 +149,6 @@ function initTabs() {
 }
 
 function switchTab(tabName) {
-  // 学年俯瞰は新しいタブで全画面モーダルとして開く
-  if (tabName === 'overview') {
-    chrome.tabs.create({ url: chrome.runtime.getURL('overview.html') });
-    return;
-  }
-
   state.activeTab = tabName;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1118,132 +1133,6 @@ async function deletePrivateTask(row) {
 }
 
 // ========================================
-// 学年俯瞰ビュー
-// ========================================
-
-async function fetchAllTasks() {
-  const list = document.getElementById('overview-list');
-  list.innerHTML = '<div class="skeleton-loader"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>';
-  try {
-    const data = await apiGet('getAllTasks');
-    const allTasks = data.tasks || [];
-    renderOverview(allTasks);
-  } catch (e) {
-    list.innerHTML = '';
-    showToast(`俯瞰データ取得エラー: ${e.message}`, 'error', fetchAllTasks);
-  }
-}
-
-function renderOverview(allTasks) {
-  const list = document.getElementById('overview-list');
-  const total = parseInt(state.settings.totalClasses);
-
-  // 未完了を上、完了を下にソート
-  const sorted = [...allTasks].sort((a, b) => {
-    const aApproved = a.approved ? 1 : 0;
-    const bApproved = b.approved ? 1 : 0;
-    if (aApproved !== bApproved) return aApproved - bApproved;
-    const da = parseDeadline(a.deadline);
-    const db = parseDeadline(b.deadline);
-    if (!da && !db) return 0;
-    if (!da) return 1;
-    if (!db) return -1;
-    return da - db;
-  });
-
-  if (sorted.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">👀</div><p>タスクがありません</p></div>';
-    return;
-  }
-
-  list.innerHTML = sorted.map(task => renderOverviewCard(task, total)).join('');
-  bindOverviewEvents();
-}
-
-function renderOverviewCard(task, total) {
-  const { assigned, completed } = getAssignedCount(task);
-  const percent = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
-  const isComplete = percent === 100;
-
-  // マトリクスセル（クラス + 学年主任 + 担任外）
-  let matrixCells = '';
-  for (let i = 1; i <= total; i++) {
-    const isAssigned = task[`assignKumi${i}`];
-    matrixCells += renderMatrixCell(`${i}組`, task[`kumi${i}`], isAssigned);
-  }
-  matrixCells += renderMatrixCell('主任', task.leader, task.assignLeader);
-  matrixCells += renderMatrixCell('担任外', task.tanningai, task.assignTanningai);
-
-  // 決済ボタン
-  let approveBtn = '';
-  if (task.approved) {
-    approveBtn = `<button class="btn-approve approved" data-row="${task.row}" data-approved="true">✅ 学年済（クリックで取消）</button>`;
-  } else if (isComplete) {
-    approveBtn = `<button class="btn-approve enabled" data-row="${task.row}" data-approved="false">学年済にする</button>`;
-  } else {
-    approveBtn = `<button class="btn-approve disabled" disabled>未完了あり（決済不可）</button>`;
-  }
-
-  return `
-    <div class="overview-card ${task.approved ? 'approved' : ''}">
-      <div class="overview-card-header">
-        <span class="overview-task-name">${escapeHtml(task.task)}</span>
-        <span class="overview-deadline">${escapeHtml(formatDeadline(task.deadline) || '')}</span>
-        ${task.approved ? '<span class="approved-badge">学年済</span>' : ''}
-      </div>
-      <div class="progress-bar-container">
-        <div class="progress-bar">
-          <div class="progress-bar-fill ${isComplete ? 'complete' : ''}" style="width: ${percent}%"></div>
-        </div>
-        <div class="progress-text">${completed} / ${assigned} (${percent}%)</div>
-      </div>
-      <div class="overview-matrix">${matrixCells}</div>
-      ${approveBtn}
-    </div>
-  `;
-}
-
-function renderMatrixCell(label, checked, isAssigned) {
-  if (!isAssigned) {
-    return `<div class="matrix-cell not-assigned"><span class="matrix-label">${escapeHtml(label)}</span><span class="matrix-status">―</span></div>`;
-  }
-  return `<div class="matrix-cell ${checked ? 'checked' : ''}"><span class="matrix-label">${escapeHtml(label)}</span><span class="matrix-status">${checked ? '✅' : '☐'}</span></div>`;
-}
-
-function bindOverviewEvents() {
-  document.querySelectorAll('.btn-approve:not([disabled])').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const row = parseInt(btn.dataset.row);
-      const currentlyApproved = btn.dataset.approved === 'true';
-
-      if (currentlyApproved) {
-        const ok = await showConfirm('決済取り消し', 'この学年済の決済を取り消しますか？');
-        if (!ok) return;
-        await handleApprove(row, false, btn);
-      } else {
-        const ok = await showConfirm('学年済の決済', 'このタスクを学年済として決済しますか？');
-        if (!ok) return;
-        await handleApprove(row, true, btn);
-      }
-    });
-  });
-}
-
-async function handleApprove(row, approved, btn) {
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-small"></span> 処理中...';
-  try {
-    await apiPost('approveTask', { row, approved });
-    showToast(approved ? '学年済として決済しました' : '決済を取り消しました', 'success');
-    fetchAllTasks();
-  } catch (e) {
-    showToast(`決済エラー: ${e.message}`, 'error');
-    btn.disabled = false;
-    btn.textContent = approved ? '学年済にする' : '✅ 学年済（クリックで取消）';
-  }
-}
-
-// ========================================
 // 設定画面
 // ========================================
 
@@ -1256,6 +1145,33 @@ function initSettingsTab() {
   document.getElementById('setting-role-tanningai').checked = state.settings.myRoles.includes('tanningai');
   document.getElementById('setting-leader-mode').checked = state.settings.isLeader;
   document.getElementById('setting-total-classes').value = state.settings.totalClasses;
+
+  // 文字サイズスライダー
+  const fontSlider = document.getElementById('setting-font-size');
+  const fontValue = document.getElementById('font-size-value');
+  fontSlider.value = state.settings.fontSize || 100;
+  fontValue.textContent = fontSlider.value + '%';
+  fontSlider.addEventListener('input', (e) => {
+    fontValue.textContent = e.target.value + '%';
+    document.body.style.zoom = parseInt(e.target.value) / 100;
+  });
+
+  // テーマセレクター
+  const themeContainer = document.getElementById('theme-selector');
+  const currentTheme = state.settings.theme || 'purple';
+  themeContainer.innerHTML = Object.entries(THEMES).map(([key, theme]) =>
+    `<div class="theme-option ${key === currentTheme ? 'active' : ''}" data-theme="${key}">
+      <div class="theme-swatch" style="background: ${theme.vars['--primary']}"></div>
+      <span>${theme.name}</span>
+    </div>`
+  ).join('');
+  themeContainer.querySelectorAll('.theme-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      themeContainer.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      applyTheme(opt.dataset.theme);
+    });
+  });
 
   // 学年主任チェック→学年主任モード自動ON
   document.getElementById('setting-role-leader').addEventListener('change', (e) => {
@@ -1301,7 +1217,9 @@ function initSettingsTab() {
       myClass,
       myRoles: roles,
       isLeader: document.getElementById('setting-leader-mode').checked,
-      totalClasses: parseInt(totalClasses)
+      totalClasses: parseInt(totalClasses),
+      fontSize: parseInt(document.getElementById('setting-font-size').value),
+      theme: document.querySelector('.theme-option.active')?.dataset.theme || 'purple'
     };
 
     await saveSettings();

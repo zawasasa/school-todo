@@ -2,6 +2,14 @@
    学年俯瞰モーダル - ロジック
    ======================================== */
 
+// --- テーマ定義 ---
+const THEMES = {
+  purple: { name: 'パープル', vars: { '--primary': '#9B8EC4', '--primary-light': '#C4B8E0', '--primary-dark': '#7B6FA0', '--primary-bg': '#F3F0FA', '--accent': '#E8E0F5', '--border': '#E0DCF0', '--shadow': 'rgba(155,142,196,0.12)' }},
+  blue:   { name: 'ブルー',   vars: { '--primary': '#6B9EC4', '--primary-light': '#A3C4E0', '--primary-dark': '#4A7A9F', '--primary-bg': '#EFF5FA', '--accent': '#DDE9F5', '--border': '#D0DCE8', '--shadow': 'rgba(107,158,196,0.12)' }},
+  green:  { name: 'グリーン', vars: { '--primary': '#7BB88C', '--primary-light': '#A8D4B4', '--primary-dark': '#5A9468', '--primary-bg': '#EFF7F1', '--accent': '#DFF0E4', '--border': '#CCE4D2', '--shadow': 'rgba(123,184,140,0.12)' }},
+  pink:   { name: 'ピンク',   vars: { '--primary': '#C48EA0', '--primary-light': '#E0B8C8', '--primary-dark': '#A06F80', '--primary-bg': '#FAF0F4', '--accent': '#F5E0EA', '--border': '#F0D0DC', '--shadow': 'rgba(196,142,160,0.12)' }}
+};
+
 let settings = {};
 let allTasks = [];
 let viewMode = 'table'; // 'table' or 'card'
@@ -38,6 +46,16 @@ async function loadSettings() {
   return new Promise((resolve) => {
     chrome.storage.local.get('settings', (result) => {
       settings = result.settings || {};
+      // テーマ適用
+      const theme = THEMES[settings.theme || 'purple'];
+      if (theme) {
+        const root = document.documentElement;
+        Object.entries(theme.vars).forEach(([prop, value]) => {
+          root.style.setProperty(prop, value);
+        });
+      }
+      // 文字サイズ適用
+      document.body.style.zoom = (settings.fontSize || 100) / 100;
       resolve();
     });
   });
@@ -140,7 +158,7 @@ function renderTable(tasks, total) {
     headerCells += '<th class="th-check">' + i + '組</th>';
   }
   headerCells += '<th class="th-check">主任</th><th class="th-check">担任外</th>';
-  headerCells += '<th class="th-progress">進捗</th><th class="th-action">決済</th>';
+  headerCells += '<th class="th-progress">進捗</th><th class="th-action">' + (settings.isLeader ? '決済' : '状態') + '</th>';
 
   let rows = '';
   for (const task of tasks) {
@@ -192,15 +210,19 @@ function renderTable(tasks, total) {
       '" style="width:' + percent + '%"></div></div>' +
       '<span class="progress-mini-text">' + percent + '%</span></td>';
 
-    // 決済ボタン
-    if (task.approved) {
-      rows += '<td><button class="btn-approve-mini approved-btn" data-row="' + task.row +
-        '" data-approved="true">✅済</button></td>';
-    } else if (isComplete) {
-      rows += '<td><button class="btn-approve-mini enabled" data-row="' + task.row +
-        '" data-approved="false">決済</button></td>';
+    // 決済ボタン / 状態表示
+    if (settings.isLeader) {
+      if (task.approved) {
+        rows += '<td><button class="btn-approve-mini approved-btn" data-row="' + task.row +
+          '" data-approved="true">✅済</button></td>';
+      } else if (isComplete) {
+        rows += '<td><button class="btn-approve-mini enabled" data-row="' + task.row +
+          '" data-approved="false">決済</button></td>';
+      } else {
+        rows += '<td><button class="btn-approve-mini disabled" disabled>―</button></td>';
+      }
     } else {
-      rows += '<td><button class="btn-approve-mini disabled" disabled>―</button></td>';
+      rows += '<td>' + (task.approved ? '<span class="status-approved">✅済</span>' : '<span class="status-pending">―</span>') + '</td>';
     }
 
     rows += '</tr>';
@@ -251,12 +273,16 @@ function renderCard(task, total) {
   }
 
   let approveBtn = '';
-  if (task.approved) {
-    approveBtn = '<button class="btn-approve approved-btn" data-row="' + task.row + '" data-approved="true">✅ 学年済（クリックで取消）</button>';
-  } else if (isComplete) {
-    approveBtn = '<button class="btn-approve enabled" data-row="' + task.row + '" data-approved="false">学年済にする</button>';
+  if (settings.isLeader) {
+    if (task.approved) {
+      approveBtn = '<button class="btn-approve approved-btn" data-row="' + task.row + '" data-approved="true">✅ 学年済（クリックで取消）</button>';
+    } else if (isComplete) {
+      approveBtn = '<button class="btn-approve enabled" data-row="' + task.row + '" data-approved="false">学年済にする</button>';
+    } else {
+      approveBtn = '<button class="btn-approve disabled" disabled>未完了あり（決済不可）</button>';
+    }
   } else {
-    approveBtn = '<button class="btn-approve disabled" disabled>未完了あり（決済不可）</button>';
+    approveBtn = task.approved ? '<div class="status-readonly">✅ 学年済</div>' : '';
   }
 
   return '<div class="card ' + (task.approved ? 'approved' : '') + '">' +

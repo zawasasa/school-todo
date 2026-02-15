@@ -101,6 +101,31 @@ body {
 }
 
 /* ========================================
+   学年俯瞰ボタンバー
+   ======================================== */
+
+.overview-bar-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  background: var(--primary-bg);
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid var(--border);
+}
+
+.overview-bar-btn:hover {
+  background: var(--accent);
+}
+
+/* ========================================
    ツールバー
    ======================================== */
 
@@ -518,17 +543,26 @@ body {
 }
 
 .task-submit-to {
+  display: none;
   font-size: 11px;
   color: var(--text-light);
   margin-top: 2px;
 }
 
+.task-card.expanded .task-submit-to {
+  display: block;
+}
+
 /* 担当バッジ */
 .assign-badges {
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: 3px;
   margin: 4px 0;
+}
+
+.task-card.expanded .assign-badges {
+  display: flex;
 }
 
 .assign-badge {
@@ -645,6 +679,23 @@ body {
 
 .task-card.expanded .task-detail {
   display: block;
+}
+
+/* 展開インジケーター */
+.task-card::after {
+  content: '▼';
+  position: absolute;
+  right: 8px;
+  bottom: 4px;
+  font-size: 8px;
+  color: var(--text-light);
+  opacity: 0.3;
+  transition: transform 0.2s;
+}
+
+.task-card.expanded::after {
+  transform: rotate(180deg);
+  opacity: 0.5;
 }
 
 /* 決済済みバッジ */
@@ -784,6 +835,7 @@ body {
 }
 
 .category-tag {
+  display: none;
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 6px;
@@ -791,15 +843,28 @@ body {
   color: var(--primary-dark);
 }
 
+.private-card.expanded .category-tag {
+  display: inline;
+}
+
 .completed-date {
+  display: none;
   font-size: 10px;
   color: var(--success);
 }
 
+.private-card.expanded .completed-date {
+  display: inline;
+}
+
 .private-card-actions {
-  display: flex;
+  display: none;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.private-card.expanded .private-card-actions {
+  display: flex;
 }
 
 .icon-btn {
@@ -834,141 +899,6 @@ body {
 
 .private-card.expanded .private-memo {
   display: block;
-}
-
-/* ========================================
-   学年俯瞰ビュー
-   ======================================== */
-
-.overview-list {
-  padding: 8px;
-}
-
-.overview-card {
-  background: var(--card-bg);
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 4px var(--shadow);
-}
-
-.overview-card.approved {
-  opacity: 0.5;
-}
-
-.overview-card-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.overview-task-name {
-  font-size: 13px;
-  font-weight: 600;
-  flex: 1;
-}
-
-.overview-deadline {
-  font-size: 11px;
-  color: var(--text-light);
-}
-
-/* 進捗バー */
-.progress-bar-container {
-  margin: 6px 0;
-}
-
-.progress-bar {
-  height: 6px;
-  background: var(--accent);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background: var(--primary);
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.progress-bar-fill.complete {
-  background: var(--success);
-}
-
-.progress-text {
-  font-size: 10px;
-  color: var(--text-light);
-  margin-top: 2px;
-  text-align: right;
-}
-
-/* マトリクス */
-.overview-matrix {
-  display: grid;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.matrix-cell {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  background: var(--primary-bg);
-}
-
-.matrix-cell.not-assigned {
-  background: #F0F0F4;
-  color: var(--text-light);
-}
-
-.matrix-cell.checked {
-  background: rgba(123, 198, 126, 0.1);
-}
-
-.matrix-cell .matrix-label {
-  font-weight: 600;
-}
-
-.matrix-cell .matrix-status {
-  font-size: 14px;
-}
-
-/* 決済ボタン */
-.btn-approve {
-  margin-top: 8px;
-  width: 100%;
-  padding: 8px;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-approve.enabled {
-  background: var(--primary);
-  color: #fff;
-}
-
-.btn-approve.enabled:hover {
-  background: var(--primary-dark);
-}
-
-.btn-approve.disabled {
-  background: #E0E0E0;
-  color: #AAA;
-  cursor: not-allowed;
-}
-
-.btn-approve.approved {
-  background: var(--success);
-  color: #fff;
 }
 
 /* ========================================
@@ -1056,6 +986,51 @@ body {
 
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(18px);
+}
+
+/* 文字サイズスライダー */
+.font-size-slider {
+  width: 100%;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* テーマセレクター */
+.theme-selector {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: all 0.2s;
+  font-size: 11px;
+  color: var(--text-light);
+}
+
+.theme-option:hover {
+  background: var(--primary-bg);
+}
+
+.theme-option.active {
+  border-color: var(--primary);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.theme-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.1);
 }
 
 /* ========================================

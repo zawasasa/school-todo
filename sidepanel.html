@@ -11,13 +11,17 @@
   <div class="tab-bar">
     <button class="tab active" data-tab="tasks">📋 学年タスク</button>
     <button class="tab" data-tab="private">🔒 マイタスク</button>
-    <button class="tab tab-overview hidden" data-tab="overview">👀 学年俯瞰</button>
     <button class="tab" data-tab="settings">⚙️ 設定</button>
     <div class="tab-indicator"></div>
   </div>
 
   <!-- ロールステータス -->
   <div id="role-status" class="role-status"></div>
+
+  <!-- 学年俯瞰ボタンバー -->
+  <div id="overview-bar" class="overview-bar">
+    <button id="btn-open-overview" class="overview-bar-btn">👀 学年俯瞰を開く →</button>
+  </div>
 
   <!-- 学年タスクタブ -->
   <div id="tab-tasks" class="tab-content active">
@@ -176,19 +180,6 @@
     </div>
   </div>
 
-  <!-- 学年俯瞰タブ（学年主任専用） -->
-  <div id="tab-overview" class="tab-content">
-    <div class="toolbar">
-      <h3>学年タスク俯瞰</h3>
-    </div>
-    <div id="overview-list" class="overview-list">
-      <div class="skeleton-loader">
-        <div class="skeleton-card"></div>
-        <div class="skeleton-card"></div>
-      </div>
-    </div>
-  </div>
-
   <!-- 設定タブ -->
   <div id="tab-settings" class="tab-content">
     <div class="settings-form">
@@ -232,6 +223,14 @@
           <option value="3">3クラス</option>
           <option value="4">4クラス</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label>文字サイズ <span id="font-size-value">100%</span></label>
+        <input type="range" id="setting-font-size" min="80" max="120" step="5" value="100" class="font-size-slider">
+      </div>
+      <div class="form-group">
+        <label>カラーテーマ</label>
+        <div class="theme-selector" id="theme-selector"></div>
       </div>
       <div class="settings-actions">
         <button class="btn btn-primary" id="btn-save-settings">保存</button>
